@@ -28,7 +28,7 @@ git archive --format=tar HEAD | podman run --rm -i \
     --security-opt no-new-privileges \
     -v "$OUT:/out:Z" \
     "$IMAGE" bash -euo pipefail -c '
-        dnf -y -q install python3 python3-pip python3-tkinter binutils >/dev/null
+        dnf -y -q install python3 python3-pip python3-tkinter binutils util-linux >/dev/null
         useradd -m builder
         mkdir /src && tar -x -C /src && chown -R builder /src
         runuser -u builder -- bash -euo pipefail -c "
