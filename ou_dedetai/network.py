@@ -774,7 +774,17 @@ def _get_faithlife_product_releases(
 
 
 def update_lli_binary(app: App):
-    lli_file_path = os.path.realpath(sys.argv[0])
+    # HARDENING (H1): self-update is disabled in this hardened build. It would
+    # download an unverified upstream binary and overwrite this patched one.
+    # Update by pulling upstream and rebuilding instead (see HARDENING.md).
+    message = (
+        f"Self-update is disabled in this hardened build of {constants.APP_NAME}. "
+        "Update by running scripts/hardened-sync.sh and rebuilding."
+    )
+    logging.warning(message)
+    app.status(message)
+    return
+    lli_file_path = os.path.realpath(sys.argv[0])  # upstream code below kept unchanged for easy rebasing
     lli_download_path = Path(app.conf.download_dir) / constants.BINARY_NAME
     temp_path = Path(app.conf.download_dir) / f"{constants.BINARY_NAME}.tmp"
     logging.debug(
