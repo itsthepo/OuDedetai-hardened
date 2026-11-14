@@ -1,4 +1,5 @@
 import re
+import shlex
 
 import distro
 import logging
@@ -240,13 +241,13 @@ def get_pids(query) -> list[psutil.Process]:
 
 def reboot(superuser_command: str):
     logging.info("Rebooting system.")
-    command = f"{superuser_command} reboot now"
+    # HARDENING (H4): argument list, no shell
+    command = [superuser_command, "reboot", "now"]
     run_command(
         command,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         capture_output=False,
-        shell=True,
         text=True
     )
     sys.exit(0)
@@ -849,6 +850,25 @@ def postinstall_dependencies(superuser_command: str):
     return command
 
 
+def _build_root_script(tokens: list[str], superuser_command: str) -> str:
+    """HARDENING (H4): turns ["a", "b", "&&", "sudo", "c"] into "a b && c" with
+    every argument shell-quoted. A leading superuser command is dropped from each
+    segment because the whole script already runs as root."""
+    segments: list[list[str]] = [[]]
+    for token in tokens:
+        if token == "&&":
+            segments.append([])
+        else:
+            segments[-1].append(token)
+    quoted = []
+    for seg in segments:
+        if seg and seg[0] == superuser_command:
+            seg = seg[1:]
+        if seg:
+            quoted.append(shlex.join(seg))
+    return " && ".join(quoted)
+
+
 def install_dependencies(app: App, target_version=10):
     if app.conf.skip_install_system_dependencies:
         return
@@ -953,20 +973,23 @@ def install_dependencies(app: App, target_version=10):
         return
 
     app.status("Installing dependencies…")
-    final_command = [
-        # FIXME: Consider switching this back to single quotes
-        # (the sed line in alpine post will need to change to double if so)
-        f"{app.superuser_command}", 'sh', '-c', '"', *command, '"'
-    ]
-    command_str = ' '.join(final_command)
-    # FIXME: consider how to tell the user which command we're running.
-    # When we install on the terminal the user doesn't know what they're sudo'ing
-    # logging.info(f"Running command: {command_str}")
+    # HARDENING (H4): upstream joined every token into one unquoted string and
+    # ran it with shell=True as root. Instead, split on "&&", shell-quote every
+    # argument, and pass a single script to `<superuser> sh -c` as an argv list
+    # (one password prompt). The user is shown the exact script before it runs.
+    root_script = _build_root_script(command, app.superuser_command)
+    final_command = [app.superuser_command, "sh", "-c", root_script]
+    command_str = shlex.join(final_command)
+    app.approve_or_exit(
+        "The following commands will now be run as root. Continue?",
+        root_script.replace(" && ", "\n"),
+    )
+    logging.info(f"Running as root: {root_script}")
 
     if not install_deps_failed:
         try:
             logging.debug(f"Attempting to run this command: {command_str}")
-            run_command(command_str, shell=True)
+            run_command(final_command)
         except subprocess.CalledProcessError as e:
             if e.returncode == 127:
                 logging.error("Superuser authentication failed or was cancelled.")
