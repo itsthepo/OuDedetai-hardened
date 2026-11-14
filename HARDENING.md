@@ -48,7 +48,7 @@ first (`scripts/hardened-pin.py suggest` prints it).
 ## Everyday commands
 
 ```bash
-scripts/hardened-build.sh                 # build dist/oudedetai (needs tkinter)
+scripts/hardened-build.sh                 # build dist/oudedetai in a throwaway rootless podman container
 scripts/hardened-pin.py suggest           # URLs upstream currently wants
 scripts/hardened-pin.py add <URL> "note"  # review + pin a new download
 scripts/hardened-pin.py list
