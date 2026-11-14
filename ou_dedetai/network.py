@@ -418,6 +418,59 @@ class NetworkRequests:
         return self._repo_version("FaithLife-Community/icu")
 
 
+
+# HARDENING (H2): every downloaded file must match a SHA-256 hash that was
+# reviewed and committed to assets/hardened-pins.json. The upstream size/MD5
+# check only compares against headers from the same server, which proves
+# nothing if the release itself was tampered with.
+PINS_FILE = constants.APP_ASSETS_DIR / "hardened-pins.json"
+ALLOW_UNPINNED_ENV = "OUDEDETAI_ALLOW_UNPINNED"
+
+
+def _load_pins() -> dict[str, str]:
+    try:
+        data = json.loads(PINS_FILE.read_text())
+    except FileNotFoundError:
+        logging.error(f"Pin file missing: {PINS_FILE}")
+        return {}
+    return {url: entry["sha256"].lower() for url, entry in data.get("pins", {}).items()}
+
+
+def file_sha256(path: Path | str) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _enforce_pinned_hash(url: str, file_path: Path | str, app: App) -> None:
+    """Exits the app unless file_path matches the pinned SHA-256 for url."""
+    expected = _load_pins().get(url)
+    actual = file_sha256(file_path)
+    if expected is None:
+        if os.environ.get(ALLOW_UNPINNED_ENV) == "1":
+            logging.warning(
+                f"UNPINNED download accepted because {ALLOW_UNPINNED_ENV}=1: "
+                f"{url} sha256={actual}"
+            )
+            return
+        app.exit(
+            "Refusing to use a download that has not been reviewed and pinned.\n"
+            f"URL: {url}\nFile: {file_path}\nSHA-256: {actual}\n"
+            "Review it, then add it with: scripts/hardened-pin.py add <URL>\n"
+            "and rebuild (see HARDENING.md)."
+        )
+    if actual != expected:
+        app.exit(
+            "SECURITY: downloaded file does NOT match its pinned SHA-256 hash.\n"
+            f"URL: {url}\nFile: {file_path}\n"
+            f"Expected: {expected}\nActual:   {actual}\n"
+            "The file was left in place for inspection; do not use it."
+        )
+    logging.info(f"Pinned SHA-256 verified for {file_path}")
+
+
 def logos_reuse_download(
     sourceurl: str,
     file: str,
@@ -443,6 +496,7 @@ def logos_reuse_download(
                     status_messages=status_messages
                 ):
                     logging.info(f"{file} properties match. Using it…")
+                    _enforce_pinned_hash(sourceurl, file_path, app)  # HARDENING (H2)
                     logging.debug(f"Copying {file} into {targetdir}")
                     try:
                         shutil.copy(os.path.join(i, file), targetdir)
@@ -466,6 +520,7 @@ def logos_reuse_download(
             app=app,
             status_messages=status_messages
         ):
+            _enforce_pinned_hash(sourceurl, file_path, app)  # HARDENING (H2)
             logging.debug(f"Copying: {file} into: {targetdir}")
             try:
                 shutil.copy(os.path.join(app.conf.download_dir, file), targetdir)

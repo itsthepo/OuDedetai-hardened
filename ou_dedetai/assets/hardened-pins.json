@@ -1,0 +1,22 @@
+{
+  "pins": {
+    "https://downloads.logoscdn.com/LBS10/Installer/54.3.0.0005/Logos-x64.msi": {
+      "sha256": "90d01c2b83fa1bff14ac9f5b2ad2b5641585833c57dd3a2d1fe5c8601eccfa6f",
+      "size": 477642752,
+      "added": "2026-11-14",
+      "note": "Logos 10 stable 54.3.0.0005"
+    },
+    "https://github.com/FaithLife-Community/icu/releases/download/72.1-custom%2B4/icu-win.tar.gz": {
+      "sha256": "2813ea1205fcf9d9a7930339dae181dc3e299b2391f2f4879c5e542be43f3a7f",
+      "size": 16643352,
+      "added": "2026-11-14",
+      "note": "ICU data 72.1-custom+4"
+    },
+    "https://github.com/FaithLife-Community/wine-appimages/releases/download/10.8-staging/wine-staging_10.8-x86_64.AppImage": {
+      "sha256": "aec77bc53d935bea8a8426112d957cb4e54f1d4154fb73d6b9e69d5f439f4879",
+      "size": 240103768,
+      "added": "2026-11-14",
+      "note": "Recommended Wine AppImage 10.8-staging"
+    }
+  }
+}
