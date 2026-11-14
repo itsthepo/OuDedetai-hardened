@@ -94,7 +94,10 @@ DEFAULT_LOG_LEVEL = logging.WARNING
 LOGOS_BLUE = '#0082FF'
 LOGOS_GRAY = '#E7E7E7'
 LOGOS_WHITE = '#FCFCFC'
-PID_FILE = f'/tmp/{BINARY_NAME}.pid'
+# HARDENING (H5): keep the PID file in the user's private runtime dir (0700),
+# not world-writable /tmp where another user could plant or squat it.
+_RUNTIME_DIR = os.environ.get("XDG_RUNTIME_DIR") or str(Path.home() / ".cache")
+PID_FILE = str(Path(_RUNTIME_DIR) / f"{BINARY_NAME}.pid")
 
 WINE_BETA_SIGIL = "Experimental (AKA Beta)"
 WINE_RECOMMENDED_SIGIL = "Recommended"

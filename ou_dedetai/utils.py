@@ -56,9 +56,26 @@ def die_if_running(app: App):
     if os.path.isfile(constants.PID_FILE):
         with open(constants.PID_FILE, 'r') as f:
             pid = f.read().strip()
+        # HARDENING (H5): only offer to kill a live process that we own and
+        # that is actually this app; ignore stale or bogus PID files.
+        proc = None
+        try:
+            candidate = psutil.Process(int(pid))
+            cmdline = " ".join(candidate.cmdline())
+            if (
+                candidate.pid != os.getpid()
+                and candidate.uids().real == os.getuid()
+                and (constants.BINARY_NAME in cmdline or constants.PACKAGE_NAME in cmdline)
+            ):
+                proc = candidate
+        except (ValueError, psutil.Error):
+            pass
+        if proc is None:
+            logging.info(f"Ignoring stale PID file {constants.PID_FILE} ({pid!r}).")
+        else:
             message = f"The script is already running on PID {pid}. Should it be killed to allow this instance to run?"
             if app.approve(message):
-                os.kill(int(pid), signal.SIGKILL)
+                proc.send_signal(signal.SIGKILL)
 
     atexit.register(remove_pid_file)
     with open(constants.PID_FILE, 'w') as f:
@@ -81,7 +98,12 @@ def restart_lli():
 
 def clean_all():
     logging.info("Cleaning all temp files…")
-    os.system(f"rm -f {os.getcwd()}/wget-log*")
+    # HARDENING (H6): no shell; upstream interpolated an unquoted path into os.system
+    for log in glob.glob(os.path.join(glob.escape(os.getcwd()), "wget-log*")):
+        try:
+            os.remove(log)
+        except OSError:
+            pass
     logging.info("done")
 
 
