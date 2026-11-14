@@ -179,5 +179,31 @@ class TestH6NoOsSystem(unittest.TestCase):
             self.assertFalse(Path(cwd, "PWNED").exists())
 
 
+class TestH7UrlHandler(unittest.TestCase):
+    def test_malicious_url_is_passed_verbatim(self):
+        import ou_dedetai.installer as installer
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td)
+            received = td / "args.txt"
+            fake_exe = td / "fake exe"  # space in path on purpose
+            fake_exe.write_text(f'#!/bin/sh\nprintf "%s\\n" "$@" > "{received}"\n')
+            fake_exe.chmod(0o755)
+            app = Mock()
+            app.conf.logos_exe_windows_path = "C:\\users\\po\\AppData\\Local\\Logos\\Logos.exe"
+            script = installer._write_url_handler_script(app, td, str(fake_exe))
+            evil = f"logos4:x;touch${{IFS}}{td}/PWNED$(touch {td}/PWNED2)`touch {td}/PWNED3`'\""
+            subprocess.run([str(script), evil], check=True, timeout=10)
+            self.assertEqual(
+                received.read_text().splitlines(),
+                ["--wine", app.conf.logos_exe_windows_path, evil],
+            )
+            for marker in ("PWNED", "PWNED2", "PWNED3"):
+                self.assertFalse((td / marker).exists(), marker)
+
+    def test_desktop_exec_quote(self):
+        import ou_dedetai.installer as installer
+        self.assertEqual(installer._desktop_exec_quote('/a b/$x"`\\'), '"/a b/\\$x\\"\\`\\\\"')
+
+
 if __name__ == "__main__":
     unittest.main()
