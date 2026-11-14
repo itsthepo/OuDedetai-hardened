@@ -18,8 +18,11 @@ Baseline reviewed: upstream `a22e766` (2026-11-13).
 | H4 | Dependency install joins tokens into one unquoted string and runs `sudo sh -c "…"` with `shell=True`; the user isn't shown what runs as root. | Each argument is `shlex`-quoted, the exact root script is shown for approval, and it runs as an argv list (still one password prompt). `reboot()` no longer uses a shell. Also fixes the SteamOS `sed` command breaking on spaces. | `ou_dedetai/system.py` |
 | H5 | PID file in world-writable `/tmp`; the app offers to `SIGKILL` whatever PID it contains. | PID file in `$XDG_RUNTIME_DIR`; only a live process owned by you that is actually this app is offered for killing. | `ou_dedetai/constants.py`, `ou_dedetai/utils.py` |
 | H6 | `os.system("rm -f <cwd>/wget-log*")` with an unquoted path. | `glob` + `os.remove`. | `ou_dedetai/utils.py` |
+| H7 | The `logos4:`/`libronixdls:` URL handler put the link (which any web page can choose) unquoted inside a `/bin/sh -c "…"` string — a Desktop Entry spec violation that, depending on the launcher, allows command injection from a malicious link. | The menu entry runs a generated `url-handler.sh` with the link as a separate argument; the script only uses `"$1"`. | `ou_dedetai/installer.py` |
 
 Tests for all of the above: `tests/test_hardening.py`.
+
+Note: upstream currently has its `die_if_running()` call commented out, so H5 guards dormant code; kept in case upstream re-enables it.
 
 ### Known residual risks (not patched)
 
@@ -44,6 +47,16 @@ Run `scripts/hardened-pin.py list` for the authoritative list.
 
 To install **Verbum** or a different Logos release, pin its installer URL
 first (`scripts/hardened-pin.py suggest` prints it).
+
+## After rebuilding
+
+Install the new binary over the copy Logos launches from, then regenerate the menu entries:
+
+```bash
+D=~/.local/share/FaithLife-Community/oudedetai
+install -m 0755 dist/oudedetai "$D/oudedetai.new" && mv -f "$D/oudedetai.new" "$D/oudedetai"
+"$D/oudedetai" --create-shortcuts
+```
 
 ## Everyday commands
 
