@@ -58,10 +58,12 @@ class TestAppUtils(unittest.TestCase):
         self.assertTrue(self.pidfile.is_file())
 
     def test_die_if_running_withfile(self):
+        # HARDENING (H5): a bogus/stale PID file is ignored instead of prompting
+        # to SIGKILL whatever PID it names. See tests/test_hardening.py.
         self.pidfile.touch()
         self.app.approve = Mock(return_value=False)
         utils.die_if_running(self.app)
-        self.assertTrue(self.app.approve.called)
+        self.assertFalse(self.app.approve.called)
 
     def test_find_appimage_files(self):
         # TODO: As is, this test only proves that the function correctly rules
