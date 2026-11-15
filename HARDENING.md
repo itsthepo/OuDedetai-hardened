@@ -1,6 +1,6 @@
 # Hardened build of OuDedetai
 
-This is a private, security-hardened copy of
+This is an unofficial, security-hardened copy of
 [FaithLife-Community/OuDedetai](https://github.com/FaithLife-Community/OuDedetai).
 Upstream code is unchanged except for a small, separate stack of commits on
 the `hardened` branch, each labelled `hardening(Hn)` and marked in the code
@@ -86,7 +86,9 @@ It will:
 6. show download URLs that may need new pins.
 
 Then pin anything new, commit, rebuild, and
-`git push --force-with-lease origin hardened`.
+`git push --force-with-lease origin hardened`. Because this rewrites the
+branch, people who cloned it update with `git fetch && git reset --hard
+origin/hardened` rather than `git pull` (see the README).
 
 If upstream fixes one of these issues itself, drop the matching
 `hardening(Hn)` commit during the rebase rather than keeping both.
@@ -94,4 +96,4 @@ If upstream fixes one of these issues itself, drop the matching
 ## Remotes
 
 - `upstream`: https://github.com/FaithLife-Community/OuDedetai (read only)
-- `origin`: private GitHub repo holding the `hardened` branch
+- `origin`: https://github.com/itsthepo/OuDedetai-hardened (the `hardened` branch)
